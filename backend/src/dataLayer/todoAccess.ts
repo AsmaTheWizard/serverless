@@ -37,21 +37,21 @@ export class TodoAccess {
 		return todo
 	}
 
-	async deleteTodo(todoId: string): Promise<boolean>{
+	async deleteTodo(todoId: string, userId:string): Promise<boolean>{
 		await this.docClient.delete({
 			TableName: this.todoTable,
-			Key:  {"todoId":todoId.toString()}
+			Key:  {"todoId":todoId.toString(), "userId":userId.toString()}
 		}).promise()
 
 		return true;
 	}
 
-	async todoExist(todoId: string){
+	async todoExist(todoId: string, userId: string){
 		const result = await this.docClient
 		.get({
 			TableName: this.todoTable,
 			Key: {
-				todoId
+				todoId, userId
 			}
 		}).promise()
 
@@ -59,10 +59,10 @@ export class TodoAccess {
 	}
 
 
-	async updateTodo(todoId: string, updatedTodo: TodoUpdate): Promise<boolean>{
+	async updateTodo(todoId: string, updatedTodo: TodoUpdate, userId: string): Promise<boolean>{
 		 await this.docClient.update({
 			TableName: this.todoTable,
-			Key:  {"todoId":todoId.toString()},
+			Key:  {"todoId":todoId.toString(), "userId":userId.toString()},
 			UpdateExpression: 'set #n = :name, dueDate = :dueDate, done = :done',
 			ExpressionAttributeNames:{
 				'#n': 'name',

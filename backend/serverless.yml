@@ -7,6 +7,21 @@ plugins:
   - serverless-reqvalidator-plugin
   - serverless-aws-documentation
 
+custom:
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: Todos API
+        description: Serverless application for todos list 
+    models:
+      - name: CreateTodoRequest
+        contentType: application/json
+        schema: ${file(src/models/create-todo-request.json)}
+      - name: UpdateTodoRequest
+        contentType: application/json
+        schema: ${file(src/models/update-todo-request.json)}
+
 provider:
   name: aws
   runtime: nodejs8.10
@@ -21,31 +36,31 @@ provider:
     SIGNED_URL_EXPIRATION: 300
     # AUTH_0_SECRET: EDg4oR8BHcF26tIWycpVPPV2pxfp4DSFbBE2tOVA8tdsUF7X0GZU9UsECAXIlMr0
   
-  iamRoleStatements:
-    - Effect: Allow
-      Action: 
-        - dynamodb:Query
-        - dynamodb:Scan
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
-    - Effect: Allow
-      Action: 
-        - dynamodb:Query
-        - dynamodb:Scan
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-      Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}/index/${self:provider.environment.USER_ID_INDEX}
+  # iamRoleStatements:
+  #   - Effect: Allow
+  #     Action: 
+  #       - dynamodb:Query
+  #       - dynamodb:Scan
+  #       - dynamodb:GetItem
+  #       - dynamodb:PutItem
+  #       - dynamodb:UpdateItem
+  #       - dynamodb:DeleteItem
+  #     Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}
+  #   - Effect: Allow
+  #     Action: 
+  #       - dynamodb:Query
+  #       - dynamodb:Scan
+  #       - dynamodb:GetItem
+  #       - dynamodb:PutItem
+  #       - dynamodb:UpdateItem
+  #       - dynamodb:DeleteItem
+  #     Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}/index/${self:provider.environment.USER_ID_INDEX}
    
-    - Effect: Allow
-      Action:
-        - s3:PutObject
-        - s3:GetObject
-      Resource: "arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*"
+  #   - Effect: Allow
+  #     Action:
+  #       - s3:PutObject
+  #       - s3:GetObject
+  #     Resource: "arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*"
 
 functions:
 
@@ -61,6 +76,19 @@ functions:
           cors: true
           authorizer: Auth
 
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}   
+      
+      - Effect: Allow
+        Action: 
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}/index/${self:provider.environment.USER_ID_INDEX}
+   
+
   CreateTodo:
     handler: src/lambda/http/createTodo.handler
     events:
@@ -69,6 +97,20 @@ functions:
           path: todos
           cors: true
           authorizer: Auth
+          reqValidatorName: RequestBodyValidator
+          documentation:
+            summary: Create a new todo
+            description: Create a new todo
+            requestModels:
+              'application/json': CreateTodoRequest
+
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - dynamodb:PutItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}   
+    
 
   UpdateTodo:
     handler: src/lambda/http/updateTodo.handler
@@ -78,7 +120,23 @@ functions:
           path: todos/{todoId}
           cors: true
           authorizer: Auth
+          reqValidatorName: RequestBodyValidator
+          documentation:
+            summary: update a  todo
+            description: update a  todo
+            requestModels:
+              'application/json': UpdateTodoRequest
 
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:Scan
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}   
+    
   DeleteTodo:
     handler: src/lambda/http/deleteTodo.handler
     events:
@@ -87,6 +145,15 @@ functions:
           path: todos/{todoId}
           cors: true
           authorizer: Auth
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - dynamodb:DeleteItem
+          - dynamodb:Scan
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.GROUPS_TABLE}   
+    
 
   GenerateUploadUrl:
     handler: src/lambda/http/generateUploadUrl.handler
@@ -96,9 +163,25 @@ functions:
           path: todos/{todoId}/attachment
           cors: true
           authorizer: Auth
-
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+          - s3:GetObject
+        Resource: "arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*" 
+    
 resources:
   Resources:
+    RequestBodyValidator:
+      Type: AWS::ApiGateway::RequestValidator
+      Properties:
+        Name: 'request-body-validator'
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false
+
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
@@ -123,6 +206,8 @@ resources:
         KeySchema:
           - AttributeName: todoId
             KeyType: HASH
+          - AttributeName: userId
+            KeyType: RANGE            
         GlobalSecondaryIndexes:
           - IndexName: ${self:provider.environment.USER_ID_INDEX}
             KeySchema: 

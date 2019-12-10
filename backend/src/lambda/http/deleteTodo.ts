@@ -7,8 +7,10 @@ import { deleteTodo } from '../../businessLogic/todos'
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
 	const todoId = event.pathParameters.todoId
-
-	const result = await deleteTodo(todoId)
+	const authorization = event.headers.Authorization
+	const split = authorization.split(' ')
+	const jwtToken = split[1]
+	const result = await deleteTodo(todoId, jwtToken)
 
 	if(result){
 		return{

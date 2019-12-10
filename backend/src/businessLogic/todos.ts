@@ -31,12 +31,12 @@ export async function createTodo(newTodo: CreateTodoRequest,
    return todoAccess.createTodo(todo)
 }
 
-export async function deleteTodo(todoId: string): Promise<boolean>{
+export async function deleteTodo(todoId: string, jwtToken: string): Promise<boolean>{
    let flag=true;
-
-   const validTodoId = await todoAccess.todoExist(todoId)
+  let userId = parseUserId(jwtToken)
+   const validTodoId = await todoAccess.todoExist(todoId, userId)
      if(validTodoId){
-     	const result = todoAccess.deleteTodo(todoId)
+     	const result = todoAccess.deleteTodo(todoId, userId)
      	flag = (result)? true: false;
 
      }else{
@@ -47,12 +47,12 @@ export async function deleteTodo(todoId: string): Promise<boolean>{
 }
 
 
-export async function updateTodo(todoId: string, updatedTodo: UpdateTodoRequest ): Promise<boolean>{
+export async function updateTodo(todoId: string, updatedTodo: UpdateTodoRequest, jwtToken: string ): Promise<boolean>{
    let flag=true;
-
-   const validTodoId = await todoAccess.todoExist(todoId)
+   let userId = parseUserId(jwtToken)
+   const validTodoId = await todoAccess.todoExist(todoId, userId)
      if(validTodoId){
-     	const result = todoAccess.updateTodo(todoId, updatedTodo)
+     	const result = todoAccess.updateTodo(todoId, updatedTodo, userId)
      	flag = (result)? true: false;
      	
      }else{
